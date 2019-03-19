@@ -24,7 +24,7 @@ section .rodata
 
 
 section .bss
-	fd resb 1
+	fd resq 1
 	input_buf resb BUFSIZE
 	output_buf resb BUFSIZE
 
@@ -49,10 +49,10 @@ _start:
 	mov rdi, [rsp + 16]
 	call open_file
 	call read_file
-	mov rdi, 0
-	xor r8d, r8d
-	call test_mov
-	call done_reading
+	; mov rdi, 0
+	; xor r8d, r8d
+	; call test_mov
+	; call done_reading
 	jmp exit_ok
 
 ;uważać, jakby plik się źle otworzył
@@ -62,18 +62,21 @@ open_file:
   syscall
   cmp rax, 0
 	jl exit_error 					;sprawdzanie, czy otwarcie pliku nie zakończyło się błędem
-  mov [fd], rax
+  mov qword [fd], rax
   ret
 
 read_file:
 	mov rax, SYS_READ
-	mov rdi, [fd]
+	mov rdi, qword [fd]
 	mov rsi, input_buf
 	mov rdx, BUFSIZE
 	syscall
 	cmp rax, 0
 	jl exit_error
+	je done_reading
 	mov qword [chars_read], rax
+	call write
+	call read_file
 	ret
 
 between:
@@ -105,4 +108,12 @@ done_reading:
 	jne exit_error
 	cmp byte [found_inbetween_number], 1	;file includes a number between magic number and 2^32
 	jne exit_error
+	ret
+
+write:
+	mov rax, 1
+	mov rdi, 1
+	mov rsi, input_buf
+	mov rdx, BUFSIZE
+	syscall
 	ret
