@@ -12,11 +12,12 @@ O_RDONLY equ 000000q
 section .data
 	found_inbetween_number db 0
 	sequence_found db 0
+	chars_fitting db 0
 	sum dd 0
 	chars_read dq 0
 
 section .rodata
-	msg2 db 'Found in-between number'
+	msg2 db 'Found sequence!'
 	magic_number dd 68020
 	max_number dd 2147483647
 	sequence dd 6, 8, 0, 2, 0
@@ -29,7 +30,6 @@ section .bss
 	output_buf resb BUFSIZE
 
 section .text
-
 
 exit_error:
 	mov rax, SYS_EXIT
@@ -48,9 +48,10 @@ _start:
 	jne exit_error
 	mov rdi, [rsp + 16]
 	call open_file
+	xor r12d, r12d					;will keep the sum of all numbers
+	xor r13d, r13d					;will keep the counter of numbers fitting the sequence, can be small
 	call read_file
-	; mov rdi, 0
-	; xor r8d, r8d
+
 	; call test_mov
 	; call done_reading
 	jmp exit_ok
@@ -75,7 +76,9 @@ read_file:
 	jl exit_error
 	je done_reading
 	mov qword [chars_read], rax
-	call write
+	xor rdi, rdi
+	call test_mov
+	;call write
 	call read_file
 	ret
 
@@ -86,17 +89,31 @@ between:
 	jge between_ret
 	mov byte [found_inbetween_number], 1
 between_ret:
-	ret
+	jmp increment
 
+check_sequence:
+	cmp byte [sequence_found], 1
+	je check_ret
+	inc r13d
+	cmp r13d, 5
+	jl check_ret
+	mov byte [sequence_found], 1
+	call write
+check_ret:
+	jmp increment
 
 test_mov:
 	mov eax, dword [input_buf + rdi]
 	bswap eax
-	add r8d, eax 
+	add r12d, eax 
 	cmp eax, dword [magic_number]
 	je exit_error												;if magic number found, exit with error
-	jl increment
+	jl sequence_check
 	call between
+sequence_check:	
+	cmp eax, dword [sequence + r13d*4]
+	je check_sequence
+	xor r13d, r13d											;number not fitting, reset counter to 0
 increment:
 	add rdi, 4
 	cmp rdi, qword [chars_read]
@@ -104,16 +121,18 @@ increment:
 	ret
 
 done_reading:
-	cmp r8d, dword [magic_number]					;sum of all numbers mod 2^32 equals magic number
+	cmp r12d, dword [magic_number]					;sum of all numbers mod 2^32 equals magic number
 	jne exit_error
 	cmp byte [found_inbetween_number], 1	;file includes a number between magic number and 2^32
+	jne exit_error
+	cmp byte [sequence_found], 1
 	jne exit_error
 	ret
 
 write:
 	mov rax, 1
 	mov rdi, 1
-	mov rsi, input_buf
-	mov rdx, BUFSIZE
+	mov rsi, msg2
+	mov rdx, 15
 	syscall
 	ret
