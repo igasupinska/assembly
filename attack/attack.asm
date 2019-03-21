@@ -20,7 +20,6 @@ section .rodata
 	magic_number dd 68020
 	max_number dd 2147483647
 	sequence dd 6, 8, 0, 2, 0
-	;tu najlepiej trzymać sekwencję
 
 
 section .bss
@@ -120,7 +119,7 @@ sequence_check:
 increment:
 	add r15, 4
 	cmp r15, qword [chars_read]
-	jle test_mov
+	jl test_mov
 	ret
 
 done_reading:
