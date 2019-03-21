@@ -98,7 +98,7 @@ check_sequence:
 	cmp r13d, 5
 	jl check_ret
 	mov byte [sequence_found], 1
-	call write
+	;call write
 check_ret:
 	jmp increment
 
@@ -124,6 +124,12 @@ increment:
 	ret
 
 done_reading:
+	mov rax, qword [chars_read]				;check if the file is correct
+	cqo 															;rax -> rdx:rax
+	mov rbx, 4
+	div rbx
+	cmp rdx, 0
+	jne exit_error
 	cmp r12d, dword [magic_number]					;sum of all numbers mod 2^32 equals magic number
 	jne exit_error
 	cmp byte [found_inbetween_number], 1	;file includes a number between magic number and 2^32
