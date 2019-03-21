@@ -38,9 +38,9 @@ exit_ok:
 	syscall
 
 _start:
-	cmp qword [rsp], 2
+	cmp qword [rsp], 2					;check if there were two args
 	jne exit_error
-	mov rdi, [rsp + 16]
+	mov rdi, [rsp + 16]					;save the name of file
 	call open_file
 	xor r12d, r12d							;will keep the sum of all numbers
 	xor r13d, r13d							;will keep the counter of numbers fitting the sequence, can be small
@@ -64,9 +64,17 @@ read_file:
 	cmp rax, 0
 	jl exit_error 							;check if file was read successfully
 	je done_reading
-	mov qword [chars_read], rax
-	xor r15, r15
-	jmp process_buffer
+	mov qword [chars_read], rax	;save the number of bytes read
+	xor r15, r15								;will keep the index of current number in a buffer
+
+process_buffer:
+	mov eax, dword [buffer + r15]						;read next number in buffer
+	bswap eax
+	add r12d, eax														;update sum of all numbers
+	cmp eax, dword [magic_number]					
+	je exit_error														;if magic number found, exit with error
+	jg find_inbetween_number 								;if number was greater than magic number, check if it's inbetween number
+	jmp check_sequence 											;otherwise look for sequence
 
 find_inbetween_number:
 	cmp byte [inbetween_number_found], 1		;check if inbeetween number already found
@@ -85,30 +93,23 @@ check_sequence:
 	mov byte [sequence_found], 1						;mark that sequence was found
 	jmp increment
 
-process_buffer:
-	mov eax, dword [buffer + r15]						;read next number in buffer
-	bswap eax
-	add r12d, eax														;update sum of all numbers
-	cmp eax, dword [magic_number]					
-	je exit_error														;if magic number found, exit with error
-	jg find_inbetween_number
 
 sequence_check:	
-	cmp eax, dword [sequence + r13d*4]
+	cmp eax, dword [sequence + r13d*4]			;check if current number fits desirable number in sequence
 	je check_sequence
-	cmp r13d, 0
+	cmp r13d, 0															;check if current number was a candidate for starting the sequence
 	je increment
-	xor r13d, r13d													;number not fitting, reset counter to 0
-	jmp sequence_check
+	xor r13d, r13d													;number not fitting previously recognized prefix, reset counter to 0
+	jmp sequence_check 											;double check whether current number may start the sequence
 
 increment:
 	add r15, 4															;increment index of next number in buffer
-	cmp r15, qword [chars_read]							;check if there's more to read
+	cmp r15, qword [chars_read]							;check if there's more to read in buffer
 	jl process_buffer
 
 done_processing_buffer:
-	cmp qword [chars_read], BUFFSIZE
-	je read_file
+	cmp qword [chars_read], BUFFSIZE				;check if there's more to read in file
+	je read_file 														;read next portion of numbers into buffer
 
 done_reading:
 	mov rax, qword [chars_read]							;check if the file is correct
@@ -119,8 +120,8 @@ done_reading:
 	jne exit_error
 	cmp r12d, dword [magic_number]					;sum of all numbers mod 2^32 equals magic number
 	jne exit_error
-	cmp byte [inbetween_number_found], 1		;file includes a number between magic number and 2^32
+	cmp byte [inbetween_number_found], 1		;check if number between magic number and 2^32 was found
 	jne exit_error
-	cmp byte [sequence_found], 1
+	cmp byte [sequence_found], 1						;check if given sequence was found
 	jne exit_error
-	jmp exit_ok
+	jmp exit_ok 														;all conditions met, exit successfully
