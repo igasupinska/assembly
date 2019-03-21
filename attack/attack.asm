@@ -13,7 +13,6 @@ section .data
 	found_inbetween_number db 0
 	sequence_found db 0
 	chars_fitting db 0
-	sum dd 0
 	chars_read dq 0
 
 section .rodata
@@ -51,7 +50,6 @@ _start:
 	xor r12d, r12d					;will keep the sum of all numbers
 	xor r13d, r13d					;will keep the counter of numbers fitting the sequence, can be small
 	call read_file
-
 	; call test_mov
 	; call done_reading
 	jmp exit_ok
@@ -76,9 +74,11 @@ read_file:
 	jl exit_error
 	je done_reading
 	mov qword [chars_read], rax
-	xor rdi, rdi
+	xor r15, r15
 	call test_mov
 	;call write
+	cmp qword [chars_read], BUFSIZE
+	jl done_reading
 	call read_file
 	ret
 
@@ -103,7 +103,7 @@ check_ret:
 	jmp increment
 
 test_mov:
-	mov eax, dword [input_buf + rdi]
+	mov eax, dword [input_buf + r15]
 	bswap eax
 	add r12d, eax 
 	cmp eax, dword [magic_number]
@@ -113,10 +113,13 @@ test_mov:
 sequence_check:	
 	cmp eax, dword [sequence + r13d*4]
 	je check_sequence
+	cmp r13d, 0
+	je increment
 	xor r13d, r13d											;number not fitting, reset counter to 0
+	jmp sequence_check
 increment:
-	add rdi, 4
-	cmp rdi, qword [chars_read]
+	add r15, 4
+	cmp r15, qword [chars_read]
 	jle test_mov
 	ret
 
