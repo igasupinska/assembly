@@ -10,13 +10,12 @@ SYS_READ equ 0
 O_RDONLY equ 000000q
 
 section .data
-	found_inbetween_number db 0
+	inbetween_number_found db 0
 	sequence_found db 0
 	chars_fitting db 0
 	chars_read dq 0
 
 section .rodata
-	msg2 db 'Found sequence!'
 	magic_number dd 68020
 	max_number dd 2147483647
 	sequence dd 6, 8, 0, 2, 0
@@ -34,12 +33,10 @@ exit_error:
 	mov rdi, 1
 	syscall
 
-
 exit_ok:
 	mov rax, SYS_EXIT
 	xor rdi, rdi
 	syscall
-
 
 _start:
 	cmp qword [rsp], 2
@@ -49,18 +46,15 @@ _start:
 	xor r12d, r12d					;will keep the sum of all numbers
 	xor r13d, r13d					;will keep the counter of numbers fitting the sequence, can be small
 	call read_file
-	; call test_mov
-	; call done_reading
 	jmp exit_ok
 
-;uważać, jakby plik się źle otworzył
 open_file:
   mov rax, SYS_OPEN
-  mov rsi, O_RDONLY         ;for read only access
+  mov rsi, O_RDONLY
   syscall
-  cmp rax, 0
-	jl exit_error 					;sprawdzanie, czy otwarcie pliku nie zakończyło się błędem
-  mov qword [fd], rax
+  cmp rax, 0							;check if file opened successfully
+	jl exit_error
+  mov qword [fd], rax			;save file descriptor
   ret
 
 read_file:
@@ -70,7 +64,7 @@ read_file:
 	mov rdx, BUFSIZE
 	syscall
 	cmp rax, 0
-	jl exit_error
+	jl exit_error 					;check if file was read successfully
 	je done_reading
 	mov qword [chars_read], rax
 	xor r15, r15
@@ -81,34 +75,31 @@ read_file:
 	call read_file
 	ret
 
-between:
-	cmp byte [found_inbetween_number], 1
-	je between_ret
-	cmp eax, dword [max_number]
-	jge between_ret
-	mov byte [found_inbetween_number], 1
-between_ret:
+find_inbetween_number:
+	cmp byte [inbetween_number_found], 1		;check if inbeetween number already found
+	je increment
+	cmp eax, dword [max_number]							;check if number is less than 2^31
+	jge increment
+	mov byte [inbetween_number_found], 1		;mark that inbetween number was found
 	jmp increment
 
 check_sequence:
-	cmp byte [sequence_found], 1
-	je check_ret
-	inc r13d
-	cmp r13d, 5
-	jl check_ret
-	mov byte [sequence_found], 1
-	;call write
-check_ret:
+	cmp byte [sequence_found], 1					;check if sequence already found
+	je increment
+	inc r13d															;mark that additional number fits the sequence
+	cmp r13d, 5														;check if entire sequence found
+	jl increment
+	mov byte [sequence_found], 1					;mark that sequence was found
 	jmp increment
 
 test_mov:
-	mov eax, dword [input_buf + r15]
+	mov eax, dword [input_buf + r15]			;read next number in buffer
 	bswap eax
-	add r12d, eax 
-	cmp eax, dword [magic_number]
-	je exit_error												;if magic number found, exit with error
-	jl sequence_check
-	call between
+	add r12d, eax													;update sum of all numbers
+	cmp eax, dword [magic_number]					
+	je exit_error													;if magic number found, exit with error
+	jg find_inbetween_number
+
 sequence_check:	
 	cmp eax, dword [sequence + r13d*4]
 	je check_sequence
@@ -116,9 +107,10 @@ sequence_check:
 	je increment
 	xor r13d, r13d											;number not fitting, reset counter to 0
 	jmp sequence_check
+
 increment:
-	add r15, 4
-	cmp r15, qword [chars_read]
+	add r15, 4													;increment index of next number in buffer
+	cmp r15, qword [chars_read]					;check if there's more to read
 	jl test_mov
 	ret
 
@@ -131,16 +123,8 @@ done_reading:
 	jne exit_error
 	cmp r12d, dword [magic_number]					;sum of all numbers mod 2^32 equals magic number
 	jne exit_error
-	cmp byte [found_inbetween_number], 1	;file includes a number between magic number and 2^32
+	cmp byte [inbetween_number_found], 1	;file includes a number between magic number and 2^32
 	jne exit_error
 	cmp byte [sequence_found], 1
 	jne exit_error
-	ret
-
-write:
-	mov rax, 1
-	mov rdi, 1
-	mov rsi, msg2
-	mov rdx, 15
-	syscall
 	ret
