@@ -1,5 +1,5 @@
 
-%define	BUFSIZE	1024
+%define	BUFFSIZE	1024
 
 global _start
 
@@ -23,8 +23,7 @@ section .rodata
 
 section .bss
 	fd resq 1
-	input_buf resb BUFSIZE
-	output_buf resb BUFSIZE
+	buffer resb BUFFSIZE
 
 section .text
 
@@ -45,8 +44,7 @@ _start:
 	call open_file
 	xor r12d, r12d					;will keep the sum of all numbers
 	xor r13d, r13d					;will keep the counter of numbers fitting the sequence, can be small
-	call read_file
-	jmp exit_ok
+	jmp read_file
 
 open_file:
   mov rax, SYS_OPEN
@@ -60,20 +58,15 @@ open_file:
 read_file:
 	mov rax, SYS_READ
 	mov rdi, qword [fd]
-	mov rsi, input_buf
-	mov rdx, BUFSIZE
+	mov rsi, buffer
+	mov rdx, BUFFSIZE
 	syscall
 	cmp rax, 0
 	jl exit_error 					;check if file was read successfully
 	je done_reading
 	mov qword [chars_read], rax
 	xor r15, r15
-	call test_mov
-	;call write
-	cmp qword [chars_read], BUFSIZE
-	jl done_reading
-	call read_file
-	ret
+	jmp process_buffer
 
 find_inbetween_number:
 	cmp byte [inbetween_number_found], 1		;check if inbeetween number already found
@@ -92,8 +85,8 @@ check_sequence:
 	mov byte [sequence_found], 1					;mark that sequence was found
 	jmp increment
 
-test_mov:
-	mov eax, dword [input_buf + r15]			;read next number in buffer
+process_buffer:
+	mov eax, dword [buffer + r15]			;read next number in buffer
 	bswap eax
 	add r12d, eax													;update sum of all numbers
 	cmp eax, dword [magic_number]					
@@ -111,15 +104,18 @@ sequence_check:
 increment:
 	add r15, 4													;increment index of next number in buffer
 	cmp r15, qword [chars_read]					;check if there's more to read
-	jl test_mov
-	ret
+	jl process_buffer
+
+done_processing_buffer:
+	cmp qword [chars_read], BUFFSIZE
+	je read_file
 
 done_reading:
 	mov rax, qword [chars_read]				;check if the file is correct
 	cqo 															;rax -> rdx:rax
 	mov rbx, 4
 	div rbx
-	cmp rdx, 0
+	cmp rdx, 0												;check if numbers read were 32-bit
 	jne exit_error
 	cmp r12d, dword [magic_number]					;sum of all numbers mod 2^32 equals magic number
 	jne exit_error
@@ -127,4 +123,4 @@ done_reading:
 	jne exit_error
 	cmp byte [sequence_found], 1
 	jne exit_error
-	ret
+	jmp exit_ok
