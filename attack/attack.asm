@@ -1,23 +1,19 @@
-%define BUFFSIZE  1024
-
 global _start
 
 SYS_EXIT equ 60
 SYS_OPEN equ 2
 SYS_READ equ 0
-
+BUFFSIZE equ 1024
 O_RDONLY equ 000000q
 
 section .data
   inbetween_number_found db 0
   sequence_found db 0
   chars_fitting db 0
-  chars_read dq 0
 
 section .rodata
   magic_number dd 68020
   sequence dd 6, 8, 0, 2, 0
-
 
 section .bss
   fd resq 1
@@ -65,7 +61,7 @@ read_file:
   cmp rax, 0
   jl exit_error               ;check if file was read successfully
   je done_reading
-  mov qword [chars_read], rax ;save the number of bytes read
+  mov rbp, rax                ;save the number of bytes read
   xor r15, r15                ;will keep the index of current number in a buffer
 
 process_buffer:
@@ -105,15 +101,15 @@ sequence_check:
 
 increment:
   add r15, 4                              ;increment index of next number in buffer
-  cmp r15, qword [chars_read]             ;check if there's more to read in buffer
+  cmp r15, rbp                            ;check if there's more to read in buffer
   jl process_buffer
 
 done_processing_buffer:
-  cmp qword [chars_read], BUFFSIZE        ;check if there's more to read in file
+  cmp rbp, BUFFSIZE                       ;check if there's more to read in file
   je read_file                            ;read next portion of numbers into buffer
 
 done_reading:
-  mov rax, qword [chars_read]             ;check if the file is correct
+  mov rax, rbp                            ;check if the file is correct
   cqo                                     ;rax -> rdx:rax
   mov rbx, 4
   div rbx
