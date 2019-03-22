@@ -3,7 +3,7 @@ global _start
 SYS_EXIT equ 60
 SYS_OPEN equ 2
 SYS_READ equ 0
-BUFFSIZE equ 1024
+BUFFSIZE equ 4096
 O_RDONLY equ 000000q
 
 section .data
@@ -71,9 +71,10 @@ process_buffer:
   cmp eax, dword [magic_number]         
   je exit_error                           ;if magic number found, exit with error
   jg find_inbetween_number                ;if number was greater than magic number, check if it's inbetween number
-  jmp check_sequence                      ;otherwise look for sequence
+  jmp find_sequence                       ;otherwise look for sequence
 
 find_inbetween_number:
+  xor r13d, r13d                          ;need to reset sequence counter
   cmp byte [inbetween_number_found], 1    ;check if inbeetween number already found
   je increment
   cmp eax, r14d                           ;check if number is less than 2^31
@@ -81,7 +82,7 @@ find_inbetween_number:
   mov byte [inbetween_number_found], 1    ;mark that inbetween number was found
   jmp increment
 
-check_sequence:
+mark_sequence:
   cmp byte [sequence_found], 1            ;check if sequence already found
   je increment
   inc r13d                                ;mark that additional number fits the sequence
@@ -90,14 +91,13 @@ check_sequence:
   mov byte [sequence_found], 1            ;mark that sequence was found
   jmp increment
 
-
-sequence_check: 
+find_sequence: 
   cmp eax, dword [sequence + r13d*4]      ;check if current number fits desirable number in sequence
-  je check_sequence
+  je mark_sequence
   cmp r13d, 0                             ;check if current number was a candidate for starting the sequence
   je increment
   xor r13d, r13d                          ;number not fitting previously recognized prefix, reset counter to 0
-  jmp sequence_check                      ;double check whether current number may start the sequence
+  jmp find_sequence                       ;double check whether current number may start the sequence
 
 increment:
   add r15, 4                              ;increment index of next number in buffer
