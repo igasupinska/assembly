@@ -44,9 +44,7 @@ G:
 
 P:
   mov rdi, r13      ;euron id as 1st arg
-  ;pop rax
-  ;mov rsi, rax
-  ;pop rsi           ;top of stack as 2nd arg
+  pop rsi           ;top of stack as 2nd arg
   call put_value
   jmp increment
 
@@ -116,14 +114,15 @@ euron:
   mov rbp, rsp
   xor r12, r12            ;will keep index of current char
   mov r13, rdi            ;will store euron number
+  mov r15, rsi
 
 process:
-  mov dl, [rsi + r12]
+  mov dl, byte [r15 + r12]
   cmp dl, 0               ;check if word ended
   je finish
 
 check_if_sign:
-  cmp dl, "-"         ;biggest of signs
+  cmp dl, "-"             ;biggest of signs
   jle choose_sign_command
 
 check_if_number:
