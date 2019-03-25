@@ -1,14 +1,20 @@
 global euron
 
-extern get_value, put_value
-
 section .bss
+
+extern get_value        ;uint64_t get_value(uint64_t n);
+extern put_value        ;void put_value(uint64_t n, uint64_t w);
 
 section .text
 
-
+;pop one value, if 0 on top
 B:
-  jmp increment
+  pop rax
+  pop rbx
+  cmp rbx, 0
+  jne increment
+  sub r12, rbx
+  jmp process           ;no incrementation takes place
 
 ;pop value from stack
 C:
@@ -20,16 +26,28 @@ D:
   pop rax
   push rax
   push rax
-  push rax
   jmp increment
 
+;change order of two top elements
 E:
+  pop rax
+  pop rbx
+  push rax
+  push rbx
   jmp increment
 
 G:
+  mov rdi, r13
+  call get_value
+  push rax
   jmp increment
 
 P:
+  mov rdi, r13      ;euron id as 1st arg
+  ;pop rax
+  ;mov rsi, rax
+  ;pop rsi           ;top of stack as 2nd arg
+  call put_value
   jmp increment
 
 S:
@@ -50,6 +68,14 @@ sum:
   jmp increment
 
 negate:
+  pop rax
+  not rax
+  add rax, 1
+  push rax
+  jmp increment
+
+put_number:
+  push r13
   jmp increment
 
 
@@ -69,12 +95,27 @@ choose_number_command:
 
 
 choose_letter_command:
+  cmp dl, "B"
+  je B
+  cmp dl, "C"
+  je C
+  cmp dl, "D"
+  je D
+  cmp dl, "E"
+  je E
+  cmp dl, "G"
+  je G
+  cmp dl, "P"
+  je P
+  cmp dl, "S"
+  je S
   jmp increment
 
 euron:
   push rbp
   mov rbp, rsp
   xor r12, r12            ;will keep index of current char
+  mov r13, rdi            ;will store euron number
 
 process:
   mov dl, [rsi + r12]
@@ -95,6 +136,7 @@ check_if_letter:
 
 check_if_n:
   cmp dl, "n"
+  je put_number
 
 increment:
   add r12, 1
@@ -102,8 +144,8 @@ increment:
 
 
 finish:
-  pop r13
-  mov rax, r13          ;return the first number on stack
+  pop r14
+  mov rax, r14          ;return the first number on stack
   mov rsp, rbp
   pop rbp
   ret
