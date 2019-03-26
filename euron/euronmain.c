@@ -8,7 +8,7 @@
 #define NUM 2
 
 // char const* command = "01234n+P56789E-+D+*G*1n-+S2ED+E1-+75+-BC";
-char const* command = "01234n+P56789E-+D+*G*1n-+";
+char const* command = "01234n+P56789E-+D+*G*1n-+S2ED+E1-+75+-BC";
 
 extern uint64_t euron(uint64_t n, char const *prog);
 

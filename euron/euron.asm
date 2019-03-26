@@ -1,9 +1,13 @@
 global euron
-
-section .bss
+global semaphores
+global euron_top 
 
 extern get_value        ;uint64_t get_value(uint64_t n);
 extern put_value        ;void put_value(uint64_t n, uint64_t w);
+
+section .bss
+  semaphores  resb  N*N
+  euron_top   resq  N
 
 section .text
 
@@ -11,10 +15,11 @@ section .text
 B:
   pop rax
   pop rbx
+  push rbx
   cmp rbx, 0
-  jne increment
-  sub r12, rbx
-  jmp process           ;no incrementation takes place
+  je increment
+  add r12, rax
+  jmp increment           ;no incrementation takes place
 
 ;pop value from stack
 C:
@@ -49,6 +54,20 @@ P:
   jmp increment
 
 S:
+  pop rax
+  cmp rax, r13      ;synchronize with oneself
+  je increment
+  pop rcx
+  mov qword [euron_top + 8*r13], rcx     ;save top in array
+  mov byte [semaphores + rax*N + r13], 1  ;let the other euron work
+spin_lock:
+  xor bl, bl
+  xchg bl, byte [semaphores + r13*N + rax]    ;move over 2dim array
+  test bl, bl
+  jz spin_lock
+  push qword [euron_top + 8*rax]          ;push other euron's value
+  mov bl, 0
+  xchg bl, byte [semaphores + r13*N + rax]    ;mark that I need to wait next time
   jmp increment
 
 multiply:
@@ -114,7 +133,7 @@ euron:
   mov rbp, rsp
   xor r12, r12            ;will keep index of current char
   mov r13, rdi            ;will store euron number
-  mov r15, rsi
+  mov r15, rsi            ;will store input ?? will fit? -> pointer
 
 process:
   mov dl, byte [r15 + r12]
@@ -140,7 +159,6 @@ check_if_n:
 increment:
   add r12, 1
   jmp process
-
 
 finish:
   pop r14
