@@ -14,8 +14,7 @@ section .text
 ;pop one value, if 0 on top
 B:
   pop rax
-  pop rbx
-  push rbx
+  mov rbx, [rsp]
   cmp rbx, 0
   je increment
   add r12, rax
@@ -28,8 +27,7 @@ C:
 
 ;duplicate top of stack
 D:
-  pop rax
-  push rax
+  mov rax, [rsp]
   push rax
   jmp increment
 
