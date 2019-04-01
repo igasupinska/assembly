@@ -7,9 +7,11 @@ extern put_value          ;void put_value(uint64_t n, uint64_t w);
 
 section .bss
   semaphores  resb  N*N   ;0 - euron needs to wait, 1 - euron can proceed
+  alignb 8
   euron_top   resq  N     ;keeps euron top value when synchronization happens
 
 section .text
+  align 8
 
 ;pop one value, if top != 0 change index in string
 B:
@@ -42,7 +44,10 @@ E:
 ;invoke get_value and push result on top of stack
 G:
   mov rdi, r13            ;put euron id into 1st arg register
+  mov rbx, rsp
+  and rsp, -16
   call get_value          ;invoke external function
+  mov rsp, rbx
   push rax                ;push result
   jmp increment           ;process next char
 
@@ -50,7 +55,10 @@ G:
 P:
   mov rdi, r13            ;put euron id into 1st arg register
   pop rsi                 ;put popped value as 2nd arg
+  mov rbx, rsp
+  and rsp, -16
   call put_value          ;invoke external function
+  mov rsp, rbx
   jmp increment           ;process next char
 
 ;synchronize with given euron
@@ -132,13 +140,13 @@ choose_letter_command:
   jmp increment
 
 euron:
-  push rbx
   push rbp
+  mov rbp, rsp
+  push rbx
   push r12
   push r13
   push r14
   push r15
-  mov rbp, rsp
   xor r12, r12            ;will keep index of current char
   mov r13, rdi            ;will store euron number
   mov r15, rsi            ;will store pointer to input string
@@ -172,10 +180,11 @@ finish:
   pop r14
   mov rax, r14          ;return the first number on stack
   mov rsp, rbp
+  sub rsp, 40           ;move stack pointer
   pop r15
   pop r14
   pop r13
   pop r12
-  pop rbp
   pop rbx
+  pop rbp
   ret
