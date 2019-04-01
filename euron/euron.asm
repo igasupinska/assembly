@@ -7,7 +7,7 @@ extern put_value          ;void put_value(uint64_t n, uint64_t w);
 
 section .bss
   semaphores  resb  N*N   ;0 - euron needs to wait, 1 - euron can proceed
-  euron_top   resq  N 
+  euron_top   resq  N     ;keeps euron top value when synchronization happens
 
 section .text
 
@@ -67,7 +67,7 @@ spin_lock:
   test bl, bl
   jz spin_lock                              ;semaphore value was 0, wait
   push qword [euron_top + 8*rax]            ;push other euron's value
-  xor bl, 
+  xor bl, bl
   xchg bl, byte [semaphores + r13*N + rax]  ;mark that semaphore is closed
   jmp increment                             ;process next char
 
@@ -114,7 +114,6 @@ choose_number_command:
   push rax
   jmp increment
 
-
 choose_letter_command:
   cmp dl, "B"
   je B
@@ -133,7 +132,12 @@ choose_letter_command:
   jmp increment
 
 euron:
+  push rbx
   push rbp
+  push r12
+  push r13
+  push r14
+  push r15
   mov rbp, rsp
   xor r12, r12            ;will keep index of current char
   mov r13, rdi            ;will store euron number
@@ -145,15 +149,15 @@ process:
   je finish
 
 check_if_sign:
-  cmp dl, "-"             ;biggest of signs
+  cmp dl, "-"             ;"-" is the sign with biggest ASCII code
   jle choose_sign_command
 
-check_if_number:
+check_if_number:          ;"9" is the number with biggest ASCII code
   cmp dl, "9"
   jle choose_number_command
 
 check_if_letter:
-  cmp dl, "Z"
+  cmp dl, "Z"             ;"Z" is the letter with biggest ASCII code
   jle choose_letter_command
 
 check_if_n:
@@ -168,5 +172,10 @@ finish:
   pop r14
   mov rax, r14          ;return the first number on stack
   mov rsp, rbp
+  pop r15
+  pop r14
+  pop r13
+  pop r12
   pop rbp
+  pop rbx
   ret
